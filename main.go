@@ -20,9 +20,11 @@ type Product struct {
 	QualityOnHand 		int		`json:"qualityOnHand"`
 	ProductName 		string	`json:"productName"`
 }
+
 var productList []Product
 
 func init() {
+	// Dummy data pre-db implimentation
 	productsJSON := `[
 		{
 		  "productId": 1,
@@ -58,6 +60,7 @@ func init() {
 		}
 }
 
+// Helper Function - Returns an integer for the incrementing product IDs based on the highest one currently stored in productsJSON
 func getNextID() int {
 	highestID := -1
 	for _,product := range productList {
@@ -68,6 +71,7 @@ func getNextID() int {
 	return highestID + 1
 }
 
+// Helper Function - Iterates over productsJSON for product that matches an ID
 func findProductByID(productID int) (*Product, int) {
 	for i, product := range productList{
 		if product.ProductID == productID{
@@ -77,9 +81,13 @@ func findProductByID(productID int) (*Product, int) {
 	return nil, 0
 }
 
+// Handler Function -	/products/
+// GET - 				Fetch product by ID
+// PUT - 				Update product by ID
 func productHandler(w http.ResponseWriter, r *http.Request) {
 	urlPathSegments := strings.Split(r.URL.Path, "products/")
 	productID, err := strconv.Atoi(urlPathSegments[len(urlPathSegments) - 1])
+
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -90,44 +98,52 @@ func productHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+
 	switch r.Method {
-	case http.MethodGet:
-		productJson, err := json.Marshal(product)
-			
+		case http.MethodGet:
+			productJson, err := json.Marshal(product)
+				
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(productJson)
+
+		case http.MethodPut:
+			var updatedProduct Product
+			bodyBytes, err := ioutil.ReadAll(r.Body)
+
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
+				w.WriteHeader(http.StatusNotFound)
 				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(productJson)
+			err = json.Unmarshal(bodyBytes, &updatedProduct )
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-	case http.MethodPut:
-		var updatedProduct Product
-		bodyBytes, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		err = json.Unmarshal(bodyBytes, &updatedProduct )
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		if updatedProduct.ProductID != productID {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		product = &updatedProduct
-		productList[listItemIndex] = *product
-		w.WriteHeader(http.StatusAccepted)
-		return
+			if updatedProduct.ProductID != productID {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
+			product = &updatedProduct
+			productList[listItemIndex] = *product
+			w.WriteHeader(http.StatusAccepted)
+			return
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
+// Handler Function -   /products
+// GET - 				Fetch all products
+// POST - 				Create product
 func productsHandler(w http.ResponseWriter, r *http.Request){
 	switch r.Method {
 		case http.MethodGet:
@@ -151,7 +167,6 @@ func productsHandler(w http.ResponseWriter, r *http.Request){
 			}
 
 			err = json.Unmarshal(bodyBytes, &newProduct )
-	
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
