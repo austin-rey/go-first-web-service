@@ -81,7 +81,7 @@ func getProductList() []Product {
 	for _,value := range productMap.m {
 		products = append (products, value)
 	}
-	productMap.Unlock()
+	productMap.RUnlock()
 	return products
 }
 
