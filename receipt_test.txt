@@ -1,0 +1,1 @@
+Receipt file for testing file uploader service
